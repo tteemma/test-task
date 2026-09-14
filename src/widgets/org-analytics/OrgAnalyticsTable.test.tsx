@@ -23,11 +23,11 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function render(onSelect = vi.fn()) {
+function render(onSelect = vi.fn(), selectedId: string | null = null) {
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
-  act(() => root.render(<OrgAnalyticsTable graph={graph} aggregates={aggregates} selectedId={null} onSelect={onSelect} />));
+  act(() => root.render(<OrgAnalyticsTable graph={graph} aggregates={aggregates} selectedId={selectedId} onSelect={onSelect} />));
   return onSelect;
 }
 
@@ -62,5 +62,24 @@ describe('OrgAnalyticsTable', () => {
     const onSelect = render();
     act(() => (container.querySelectorAll('tbody tr')[1] as HTMLTableRowElement).click());
     expect(onSelect).toHaveBeenCalledWith('child');
+  });
+
+  it('supports roving tabindex and Enter selection', () => {
+    const onSelect = render();
+    const rows = container.querySelectorAll('tbody tr');
+    act(() => {
+      (rows[0] as HTMLTableRowElement).focus();
+      rows[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    expect(document.activeElement).toBe(rows[1]);
+    act(() => rows[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    expect(onSelect).toHaveBeenCalledWith('child');
+  });
+
+  it('brings an externally selected row into the visible table area', () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scrollIntoView });
+    render(vi.fn(), 'child');
+    expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'nearest' }));
   });
 });

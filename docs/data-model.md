@@ -5,3 +5,5 @@
 `OrgGraph` хранит нормализованные `nodesById`, `parentById`, `childrenByParent`, `rootIds`, `levelById` и исходный порядок. Пустой массив корректен. Duplicate ID, отсутствующий parent, self-parent, cycle (в том числе disconnected cycle) и недостижимые вершины отклоняются до рендера. `X-Org-Revision` — неотрицательная целая revision внешнего состояния и обязателен для клиентского контракта.
 
 На Step 2 `OrgAggregate` хранится рядом с графом в query-result: `nodeId`, `level`, `totalHeadcount`, `totalBudget` и `weightedPerformance`. Агрегаты включают сам узел и всех потомков. `weightedPerformance` равен `sum(performance × headcount) / sum(headcount)` или `null`, когда суммарная численность равна нулю.
+
+`OrgNodePatch` содержит `type: 'org-node.patch'`, `revision`, `nodeId`, `updatedAt` и непустой `changes`. В `changes` допустимы только неотрицательные `headcount`, `budget` и `performance` в диапазоне 0–100; структура и имя через live-канал не изменяются.

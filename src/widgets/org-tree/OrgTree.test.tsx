@@ -1,6 +1,6 @@
 import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { OrgNode } from '../../../shared/contracts/org-node.contract';
 import { createOrgGraph } from '@/entities/org-node/model/create-org-graph';
 import { OrgTree } from './OrgTree';
@@ -18,6 +18,7 @@ let root: Root;
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  vi.unstubAllGlobals();
 });
 
 function Harness() {
@@ -36,5 +37,16 @@ describe('OrgTree', () => {
     const selectedLeaf = container.querySelector('[aria-label="Выбрать Leaf"]');
     expect(selectedLeaf).not.toBeNull();
     expect(selectedLeaf?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('unmounts collapsed content immediately when reduced motion is requested', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => root.render(<Harness />));
+    expect(container.querySelector('[aria-label="Выбрать Child"]')).not.toBeNull();
+    act(() => (container.querySelector('[aria-label="Свернуть Root"]') as HTMLButtonElement).click());
+    expect(container.querySelector('[aria-label="Выбрать Child"]')).toBeNull();
   });
 });

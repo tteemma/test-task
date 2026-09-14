@@ -82,4 +82,30 @@ describe('OrgAnalyticsTable', () => {
     render(vi.fn(), 'child');
     expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'nearest' }));
   });
+
+  it('applies a server-provided AI filter and falls back to the name search', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ name: null, levels: [2], headcountMin: null, headcountMax: null, budgetMin: null, budgetMax: null, performanceMin: null, performanceMax: null, sort: null }) }));
+    render();
+    const input = container.querySelector('input') as HTMLInputElement;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, 'уровень 2');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      (container.querySelector('button') as HTMLButtonElement).click();
+    });
+    expect(container.textContent).toContain('AI-фильтр применён');
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1);
+  });
+
+  it('falls back to an immediate name search if AI interpretation fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
+    render();
+    const input = container.querySelector('input') as HTMLInputElement;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, 'Альфа');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      (container.querySelector('button') as HTMLButtonElement).click();
+    });
+    expect(container.textContent).toContain('AI-поиск недоступен');
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1);
+  });
 });

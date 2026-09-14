@@ -6,5 +6,5 @@ export default defineConfig({
   plugins: [react()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: { proxy: { '/api': { target: 'http://localhost:3001', changeOrigin: true } } },
-  test: { environment: 'jsdom' }
+  test: { environment: 'jsdom', exclude: ['**/node_modules/**', '**/dist/**', '**/server-dist/**'] }
 });

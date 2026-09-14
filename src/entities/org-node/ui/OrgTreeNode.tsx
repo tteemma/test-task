@@ -19,11 +19,11 @@ const Toggle = styled.button`
 `;
 const Spacer = styled.span`align-self: center; color: #cbd5e1; display: grid; height: 28px; place-items: center; width: 28px;`;
 const Select = styled.button`
-  background: transparent; border: 0; color: inherit; cursor: pointer; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) auto auto; min-width: 0; padding: 6px; text-align: left;
+  background: transparent; border: 0; color: inherit; cursor: pointer; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) 70px 58px; min-width: 0; padding: 6px; text-align: left;
   &:focus-visible { outline: 3px solid #3b82f6; outline-offset: -2px; border-radius: 5px; }
 `;
 const Name = styled.span`font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`;
-const Metric = styled.span`font-size: 13px; color: #475569; white-space: nowrap;`;
+const Metric = styled.span`font-size: 13px; color: #475569; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap;`;
 const Children = styled.ul`margin: 0; padding: 0;`;
 const Expand = styled.div<{ $height: number }>`
   height: ${({ $height }) => `${$height}px`}; overflow: hidden; transition: height 180ms ease;
@@ -31,8 +31,15 @@ const Expand = styled.div<{ $height: number }>`
 `;
 const flash = keyframes`from { background: #fef3c7; } to { background: transparent; }`;
 const ChangedMetric = styled.span`animation: ${flash} 1.5s ease-out; border-radius: 3px;`;
+const ChevronIcon = styled.svg<{ $open: boolean }>`
+  height: 18px;
+  transform: ${({ $open }) => $open ? 'rotate(90deg)' : 'rotate(0deg)'};
+  transition: transform 180ms ease;
+  width: 18px;
+  @media (prefers-reduced-motion: reduce) { transition: none; }
+`;
 function Chevron({ open }: { open: boolean }) {
-  return <svg viewBox="0 0 20 20" aria-hidden="true" style={{ transform: open ? 'rotate(90deg)' : undefined }}><path d="m7 4 6 6-6 6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" /></svg>;
+  return <ChevronIcon $open={open} viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" /></ChevronIcon>;
 }
 
 type Props = { id: NodeId; graph: OrgGraph; expandedIds: Set<NodeId>; selectedId: NodeId | null; onToggle: (id: NodeId) => void; onSelect: (id: NodeId) => void; highlightedRevisions: Map<NodeId, number> };

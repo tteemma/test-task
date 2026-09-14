@@ -16,6 +16,14 @@ async function request(app = createApp({ delayMs: 0 }), path = '/api/org-tree') 
   return fetch(`http://127.0.0.1:${port}${path}`);
 }
 
+async function post(app: ReturnType<typeof createApp>, path: string, body: unknown) {
+  const server = app.listen(0, '127.0.0.1');
+  servers.push(server);
+  await once(server, 'listening');
+  const { port } = server.address() as AddressInfo;
+  return fetch(`http://127.0.0.1:${port}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+}
+
 async function closeRawSse(app: ReturnType<typeof createApp>, path: string) {
   const server = app.listen(0, '127.0.0.1');
   servers.push(server);
@@ -29,6 +37,14 @@ async function closeRawSse(app: ReturnType<typeof createApp>, path: string) {
       resolve();
     }));
   });
+}
+
+async function waitFor(check: () => boolean, timeoutMs = 100) {
+  const startedAt = Date.now();
+  while (!check()) {
+    if (Date.now() - startedAt >= timeoutMs) throw new Error('Timed out waiting for asynchronous cleanup');
+    await new Promise<void>((resolve) => setTimeout(resolve, 5));
+  }
 }
 
 afterEach(async () => {
@@ -86,7 +102,20 @@ describe('GET /api/org-tree/events', () => {
     const store = new OrgStore([{ id: 'root', name: 'Root', parentId: null, headcount: 1, budget: 100, performance: 50, updatedAt: '2026-01-01T00:00:00.000Z' }]);
     store.applyPatch('root', { headcount: 2 });
     await closeRawSse(createApp({ store, delayMs: 0 }), '/api/org-tree/events?since=1');
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await waitFor(() => store.subscriberCount === 0);
     expect(store.subscriberCount).toBe(0);
+  });
+});
+
+describe('POST /api/search/interpret', () => {
+  it('returns a validated demo filter without requiring an API key', async () => {
+    const response = await post(createApp({ delayMs: 0 }), '/api/search/interpret', { query: 'уровень 2 от 20 человек' });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ levels: [2], headcountMin: 20 });
+  });
+
+  it('rejects malformed or oversized requests before the interpreter', async () => {
+    const response = await post(createApp({ delayMs: 0 }), '/api/search/interpret', { query: '' });
+    expect(response.status).toBe(400);
   });
 });

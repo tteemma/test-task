@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { filterAndSortRows, formatBudget, formatPerformance, getAnalyticsRows, nextSortState, type SortField, type SortState } from '@/entities/org-node/model/analytics';
 import type { OrgAggregate, OrgGraph, NodeId } from '@/entities/org-node/model/types';
+import { orgSearchFilterSchema, type OrgSearchFilter } from '../../../shared/contracts/org-search.contract';
 
 const Search = styled.div`
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-bottom: 14px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; margin-bottom: 14px;
   input { border: 1px solid #cbd5e1; border-radius: 8px; min-width: 0; padding: 9px 11px; }
   button { border: 1px solid #94a3b8; border-radius: 8px; background: #fff; cursor: pointer; padding: 8px 11px; }
 `;
@@ -43,11 +44,15 @@ export function OrgAnalyticsTable({ graph, aggregates, selectedId, onSelect, hig
   const [inputValue, setInputValue] = useState('');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortState>(null);
+  const [aiStatus, setAiStatus] = useState<string | null>(null);
+  const [aiFilter, setAiFilter] = useState<OrgSearchFilter | null>(null);
   useEffect(() => {
     const timer = window.setTimeout(() => setQuery(inputValue), 250);
     return () => window.clearTimeout(timer);
   }, [inputValue]);
-  const rows = useMemo(() => filterAndSortRows(getAnalyticsRows(graph, aggregates), query, sort), [aggregates, graph, query, sort]);
+  // While a structured filter is active, the natural-language input is only its
+  // source; the delayed plain-name search must not narrow it a second time.
+  const rows = useMemo(() => filterAndSortRows(getAnalyticsRows(graph, aggregates), aiFilter ? '' : query, sort, aiFilter), [aggregates, graph, query, sort, aiFilter]);
   const changeSort = (field: SortField) => setSort((current) => nextSortState(current, field));
   const [focusedIndex, setFocusedIndex] = useState(0);
   const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
@@ -55,6 +60,22 @@ export function OrgAnalyticsTable({ graph, aggregates, selectedId, onSelect, hig
     const nextIndex = Math.max(0, Math.min(rows.length - 1, index));
     setFocusedIndex(nextIndex);
     rowRefs.current[nextIndex]?.focus();
+  };
+  const interpretSearch = async () => {
+    if (!inputValue.trim()) return;
+    setAiStatus('AI-интерпретация запроса…');
+    try {
+      const response = await fetch('/api/search/interpret', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: inputValue }) });
+      if (!response.ok) throw new Error('AI stub');
+      const parsed = orgSearchFilterSchema.safeParse(await response.json());
+      if (!parsed.success) throw new Error('Invalid AI filter');
+      setAiFilter(parsed.data);
+      setAiStatus('AI-фильтр применён');
+    } catch {
+      setAiFilter(null);
+      setQuery(inputValue);
+      setAiStatus('AI-поиск недоступен: применён поиск по названию.');
+    }
   };
   useEffect(() => {
     if (!selectedId) return;
@@ -68,9 +89,11 @@ export function OrgAnalyticsTable({ graph, aggregates, selectedId, onSelect, hig
 
   return <>
     <Search>
-      <input value={inputValue} onChange={(event) => setInputValue(event.target.value)} placeholder="Поиск по названию" aria-label="Поиск по названию подразделения" />
-      {inputValue && <button type="button" onClick={() => setInputValue('')} aria-label="Очистить поиск">Очистить</button>}
+      <input value={inputValue} onChange={(event) => { setInputValue(event.target.value); setAiStatus(null); setAiFilter(null); }} placeholder="Поиск по названию" aria-label="Поиск по названию подразделения" />
+      <button type="button" onClick={() => void interpretSearch()} disabled={!inputValue.trim()}>AI-поиск</button>
+      {inputValue && <button type="button" onClick={() => { setInputValue(''); setAiFilter(null); setAiStatus(null); }} aria-label="Очистить поиск">Очистить</button>}
     </Search>
+    {aiStatus && <p role="status">{aiStatus}</p>}
     {rows.length === 0 ? <Empty role="status">Подразделения не найдены.</Empty> : <Scroll><Table>
       <thead><tr>{columns.map(({ field, label }) => {
         const active = sort?.field === field ? sort.direction === 'asc' ? 'ascending' : 'descending' : 'none';

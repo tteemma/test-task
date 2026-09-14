@@ -1,7 +1,9 @@
 import express from 'express';
 import { orgNodes } from './data/org-nodes.js';
 import type { OrgNode } from '../shared/contracts/org-node.contract.js';
+import { orgSearchRequestSchema } from '../shared/contracts/org-search.contract.js';
 import { OrgStore } from './org-store.js';
+import { createDemoSearchInterpreter, type SearchInterpreter } from './search-service.js';
 
 type AppOptions = {
   nodes?: readonly OrgNode[];
@@ -9,6 +11,7 @@ type AppOptions = {
   delayMs?: number;
   heartbeatMs?: number;
   store?: OrgStore;
+  searchInterpreter?: SearchInterpreter;
 };
 
 export function createApp({
@@ -16,9 +19,11 @@ export function createApp({
   revision = 1,
   delayMs = Number(process.env.MOCK_DELAY_MS ?? 400),
   heartbeatMs = 15_000,
-  store = new OrgStore(nodes, { revision })
+  store = new OrgStore(nodes, { revision }),
+  searchInterpreter = createDemoSearchInterpreter()
 }: AppOptions = {}) {
   const app = express();
+  app.use(express.json({ limit: '2kb' }));
   app.get('/api/org-tree', async (_request, response) => {
     if (delayMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
     const snapshot = store.getSnapshot();
@@ -48,6 +53,15 @@ export function createApp({
     response.on('close', cleanup);
   });
   app.get('/api/health', (_request, response) => response.json({ status: 'ok' }));
+  app.post('/api/search/interpret', async (request, response) => {
+    const parsed = orgSearchRequestSchema.safeParse(request.body);
+    if (!parsed.success) return response.status(400).json({ error: 'Запрос должен содержать строку query длиной до 300 символов' });
+    try {
+      return response.json(await searchInterpreter.interpret(parsed.data.query));
+    } catch {
+      return response.status(503).json({ error: 'AI-интерпретация временно недоступна' });
+    }
+  });
   return app;
 }
 

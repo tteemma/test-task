@@ -1,4 +1,5 @@
 import type { OrgNode } from '../../../../shared/contracts/org-node.contract';
+import type { OrgSearchFilter } from '../../../../shared/contracts/org-search.contract';
 import type { OrgAggregate, OrgGraph, NodeId } from './types';
 
 export type AnalyticsRow = OrgAggregate & Pick<OrgNode, 'name'>;
@@ -28,20 +29,33 @@ const compareValues = (left: AnalyticsRow, right: AnalyticsRow, field: SortField
   return left.weightedPerformance - right.weightedPerformance;
 };
 
-export function filterAndSortRows(rows: AnalyticsRow[], query: string, sort: SortState): AnalyticsRow[] {
+export function filterAndSortRows(rows: AnalyticsRow[], query: string, sort: SortState, aiFilter: OrgSearchFilter | null = null): AnalyticsRow[] {
   const normalizedQuery = normalizeSearch(query);
-  const filtered = normalizedQuery ? rows.filter((row) => normalizeSearch(row.name).includes(normalizedQuery)) : rows;
-  if (!sort) return filtered;
+  const filtered = rows.filter((row) => {
+    if (normalizedQuery && !normalizeSearch(row.name).includes(normalizedQuery)) return false;
+    if (!aiFilter) return true;
+    if (aiFilter.name && !normalizeSearch(row.name).includes(normalizeSearch(aiFilter.name))) return false;
+    if (aiFilter.levels && !aiFilter.levels.includes(row.level as 1 | 2 | 3)) return false;
+    if (aiFilter.headcountMin !== null && row.totalHeadcount < aiFilter.headcountMin) return false;
+    if (aiFilter.headcountMax !== null && row.totalHeadcount > aiFilter.headcountMax) return false;
+    if (aiFilter.budgetMin !== null && row.totalBudget < aiFilter.budgetMin) return false;
+    if (aiFilter.budgetMax !== null && row.totalBudget > aiFilter.budgetMax) return false;
+    if (aiFilter.performanceMin !== null && (row.weightedPerformance === null || row.weightedPerformance < aiFilter.performanceMin)) return false;
+    if (aiFilter.performanceMax !== null && (row.weightedPerformance === null || row.weightedPerformance > aiFilter.performanceMax)) return false;
+    return true;
+  });
+  const effectiveSort = aiFilter?.sort ?? sort;
+  if (!effectiveSort) return filtered;
   return filtered
     .map((row, index) => ({ row, index }))
     .sort((left, right) => {
-      if (sort.field === 'performance') {
+      if (effectiveSort.field === 'performance') {
         if (left.row.weightedPerformance === null) return right.row.weightedPerformance === null ? left.index - right.index : 1;
         if (right.row.weightedPerformance === null) return -1;
       }
-      const comparison = compareValues(left.row, right.row, sort.field);
+      const comparison = compareValues(left.row, right.row, effectiveSort.field);
       if (comparison === 0) return left.index - right.index;
-      return sort.direction === 'asc' ? comparison : -comparison;
+      return effectiveSort.direction === 'asc' ? comparison : -comparison;
     })
     .map(({ row }) => row);
 }

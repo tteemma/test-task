@@ -1,6 +1,13 @@
 import type { OrgNode } from '../../../../shared/contracts/org-node.contract';
 
 export type NodeId = string;
+export type OrgAggregate = {
+  nodeId: NodeId;
+  level: number;
+  totalHeadcount: number;
+  totalBudget: number;
+  weightedPerformance: number | null;
+};
 export type OrgGraph = {
   nodesById: Map<NodeId, OrgNode>;
   parentById: Map<NodeId, NodeId | null>;

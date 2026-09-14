@@ -3,3 +3,5 @@
 `OrgNodeDTO` содержит `id`, `name`, `parentId`, `headcount`, `budget`, `performance`, `updatedAt`. `parentId: null` означает root. Численные поля неотрицательны, performance в диапазоне 0–100, timestamp — ISO datetime с timezone.
 
 `OrgGraph` хранит нормализованные `nodesById`, `parentById`, `childrenByParent`, `rootIds`, `levelById` и исходный порядок. Пустой массив корректен. Duplicate ID, отсутствующий parent, self-parent, cycle (в том числе disconnected cycle) и недостижимые вершины отклоняются до рендера. `X-Org-Revision` — неотрицательная целая revision внешнего состояния и обязателен для клиентского контракта.
+
+На Step 2 `OrgAggregate` хранится рядом с графом в query-result: `nodeId`, `level`, `totalHeadcount`, `totalBudget` и `weightedPerformance`. Агрегаты включают сам узел и всех потомков. `weightedPerformance` равен `sum(performance × headcount) / sum(headcount)` или `null`, когда суммарная численность равна нулю.

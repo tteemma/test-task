@@ -32,7 +32,12 @@ export function createOrgGraph(nodes: OrgNode[]): OrgGraph {
     visiting.delete(id);
   };
   for (const rootId of rootIds) visit(rootId, 1);
-  if (levelById.size !== nodes.length) throw new OrgGraphError('Graph contains a cycle or unreachable node');
+  if (levelById.size !== nodes.length) {
+    for (const id of nodesById.keys()) {
+      if (!levelById.has(id)) visit(id, 1);
+    }
+    throw new OrgGraphError('Graph contains an unreachable node');
+  }
 
   return { nodesById, parentById, childrenByParent, rootIds, levelById, orderedIds: nodes.map(({ id }) => id) };
 }

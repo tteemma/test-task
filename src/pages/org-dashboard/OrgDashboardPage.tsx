@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import styled from 'styled-components';
-import { fetchOrgTree } from '@/shared/api/fetch-org-tree';
+import { fetchOrgTree } from '@/entities/org-node/api/fetch-org-tree';
 import { queryKeys } from '@/shared/api/query-keys';
 import { StatusState } from '@/shared/ui/StatusState';
 import { OrgTree } from '@/widgets/org-tree/OrgTree';
